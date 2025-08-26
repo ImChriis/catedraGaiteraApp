@@ -1,6 +1,6 @@
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import React from 'react';
-import { View, Text, StyleSheet, TextInput, Image, TouchableOpacity, Alert, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Image, Alert, Pressable } from 'react-native';
 
 const Login: React.FC = () => {
     const [correo, setCorreo] = React.useState('');
