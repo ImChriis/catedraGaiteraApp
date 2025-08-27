@@ -66,6 +66,7 @@ const Login: React.FC = () => {
           style={styles.input}
           placeholder="Correo electrónico"
           keyboardType="email-address"
+          placeholderTextColor="#888"
           value={correo}
           onChangeText={setCorreo}
           autoCapitalize="none"
@@ -74,6 +75,7 @@ const Login: React.FC = () => {
           <TextInput
             style={[styles.input, { marginBottom: 0, flex: 1 }]}
             placeholder="Contraseña"
+            placeholderTextColor="#888"
             secureTextEntry={!showPassword}
             value={clave}
             onChangeText={setClave}
@@ -159,6 +161,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     marginBottom: 15,
     fontSize: 16,
+    color: 'black',
   },
   passwordContainer: {
     flexDirection: 'row',

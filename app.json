@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "catedraGaiteraApp",
+    "name": "Cátedra Gaitera",
     "slug": "catedraGaiteraApp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icon.jpg",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -20,10 +20,17 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.vchriis.catedraGaiteraApp",
+      "name": "Cátedra Gaitera"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "3fc3671d-b1b2-4920-a3c9-e3390a7d86d0"
+      }
     }
   }
 }
