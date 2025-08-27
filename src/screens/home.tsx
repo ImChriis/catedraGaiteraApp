@@ -15,7 +15,14 @@ const Home: React.FC = () => {
     fecha: "",
     hora: "",
     lugar: "",
+    fila: "",
+    cantidad: "",
+    zona: ""
   });
+  const [resultModalVisible, setResultModalVisible] = useState(false);
+  const [resultModalType, setResultModalType] = useState<'aprobado' | 'rechazado' | null>(null);
+  const [resultModalMessage, setResultModalMessage] = useState('');
+  const [invalidQRModalVisible, setInvalidQRModalVisible] = useState(false);
 
   const api: string = "https://catedragaitera.com/catedraGaiteraBack/apiv1";
 
@@ -56,24 +63,42 @@ const Home: React.FC = () => {
       let fecha = "";
       let hora = "";
       let lugar = "";
+      let fila = "";
+      let cantidad = "";
+      let zona = ""
       // Si termina en invoices/<numero>
       const invoicesMatch = result.data.match(/invoices\/(\d+)$/);
       // Si termina en invoice/<numero>
       const invoiceMatch = result.data.match(/invoice\/(\d+)$/);
       if (invoicesMatch) {
         idDetalle = invoicesMatch[1];
+        console.log("ID Detalle encontrado:", idDetalle);
       } else if (invoiceMatch) {
         noDocumento = invoiceMatch[1];
+        console.log("No Documento encontrado:", noDocumento);
       }
 
       // Si tenemos idDetalle, buscar el noDocumento asociado
       if (idDetalle) {
         try {
           const response = await fetch(`${api}/facturacion/detalles.php`);
+          const responseDetails = await fetch(`${api}/facturacion/detalles.php?idDetalle=${idDetalle}`);
+          const details = await responseDetails.json()
           const payments = await response.json();
           const payment = payments.find((p: any) => p.idDetalle === idDetalle);
-          if (payment) {
+          // console.log("Datos del pago encontrado:", payment);
+          console.log("Datos del detalle encontrado:", details);
+          if (payment && details) {
             noDocumento = payment.noDocumento;
+            fila = payment.fila.toString() || '';
+            cantidad = details.cantidadDeEntradas.toString() || '';
+            zona = details.nombreZona
+            setModalData(prev => ({
+              ...prev,
+              fila,
+              cantidad,
+              zona
+            }));
           }
         } catch (error) {
           console.error("Error al obtener detalles:", error);
@@ -83,26 +108,60 @@ const Home: React.FC = () => {
       // Si tenemos noDocumento, buscar los datos del pago y evento
       if (noDocumento) {
         try {
-          const response = await fetch(
-            `${api}/facturacion/facturacion.php?noDocumento=${noDocumento}`
+    const response = await fetch(
+      `${api}/facturacion/facturacion.php?noDocumento=${noDocumento}`
+    );
+    const payment = await response.json();
+    const idEvento = payment.idEvento;
+    let cantidadEntradas = 0;
+
+    // Si la respuesta es un array, la cantidad es su longitud
+    if (Array.isArray(payment)) {
+      cantidadEntradas = payment.length;
+      // Puedes tomar los datos del primer objeto si necesitas nombre, fecha, etc.
+      if (payment[0]) {
+        const { idEvento: eventoId } = payment[0];
+        if (eventoId) {
+          const eventResponse = await fetch(
+            `${api}/eventos/eventos.php?idEvento=${eventoId}`
           );
-          const payment = await response.json();
-          const idEvento = payment.idEvento;
-          if (idEvento) {
-            const eventResponse = await fetch(
-              `${api}/eventos/eventos.php?idEvento=${idEvento}`
-            );
-            const event = await eventResponse.json();
-            nombre = event.nombre || "";
-            fecha = event.fecha || "";
-            hora = event.hora || "";
-            lugar = event.lugar || "";
-          }
-        } catch (error) {
-          console.error("Error al obtener datos del pago/evento:", error);
+          const event = await eventResponse.json();
+          nombre = event.nombre || "";
+          fecha = event.fecha || "";
+          hora = event.hora || "";
+          lugar = event.lugar || "";
         }
       }
+    } else {
+      // Si es un objeto único, la cantidad es 1
+      cantidadEntradas = 1;
+      if (idEvento) {
+        const eventResponse = await fetch(
+          `${api}/eventos/eventos.php?idEvento=${idEvento}`
+        );
+        const event = await eventResponse.json();
+        nombre = event.nombre || "";
+        fecha = event.fecha || "";
+        hora = event.hora || "";
+        lugar = event.lugar || "";
+      }
+    }
+    cantidad = cantidadEntradas.toString();
+  } catch (error) {
+    console.error("Error al obtener datos del pago/evento:", error);
+  }
+      }
 
+      if (
+      (!idDetalle || idDetalle === "No encontrado") &&
+      (!noDocumento || noDocumento === "No encontrado") &&
+      !nombre && !fecha && !hora && !lugar && !fila && !cantidad
+      ) {
+        setInvalidQRModalVisible(true);
+        setScanned(false); // Permite volver a escanear
+        return;
+      }
+      
       // Formatear hora (opcional, aquí solo se muestra como viene)
       // Mostrar modal con los datos
       setModalData({
@@ -112,6 +171,9 @@ const Home: React.FC = () => {
         fecha: formatDate(fecha),
         hora: formatTime(hora),
         lugar,
+        fila,
+        cantidad,
+        zona
       });
       setModalVisible(true);
       // Aquí puedes actualizar el estado si quieres mostrar los datos en pantalla
@@ -159,15 +221,17 @@ const handleStatusUpdate = async (status: string) => {
     }
     console.log('Respuesta de la API:', data);
     if (response.ok) {
-      // Alert.alert('Éxito', `Status actualizado a '${status}' correctamente.`);
-      if (status === 'Rechazado') {
-        Alert.alert('Rechazado', 'La entrada ha sido rechazada correctamente.');
-      } else {
-        Alert.alert('Aprobado', 'La entrada ha sido aprobada correctamente.');
-      }
+    if (status === 'Rechazado') {
+      setResultModalType('rechazado');
+      setResultModalMessage('La entrada ha sido rechazada correctamente.');
     } else {
-      Alert.alert('Error al aprobar entrada');
+      setResultModalType('aprobado');
+      setResultModalMessage('La entrada ha sido aprobada correctamente.');
     }
+    setResultModalVisible(true);
+  } else {
+    Alert.alert('Error al aprobar entrada');
+  }
   } catch (error) {
     console.error('Error al actualizar el status:', error);
     alert('Error al actualizar el status.');
@@ -178,6 +242,51 @@ const handleStatusUpdate = async (status: string) => {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#22242e' }}>
       <Modal
+        visible={invalidQRModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setInvalidQRModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.resultModalContent, styles.resultModalRechazado]}>
+            <Text style={styles.resultModalIcon}>❌</Text>
+            <Text style={styles.resultModalText}>QR inválido</Text>
+            <Pressable
+              style={styles.resultModalButton}
+              onPress={() => setInvalidQRModalVisible(false)}
+            >
+              <Text style={styles.resultModalButtonText}>Cerrar</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+        <Modal
+        visible={resultModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setResultModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[
+            styles.resultModalContent,
+            resultModalType === 'aprobado' ? styles.resultModalAprobado : styles.resultModalRechazado
+          ]}>
+            <Text style={styles.resultModalIcon}>
+              {resultModalType === 'aprobado' ? '✅' : '❌'}
+            </Text>
+            <Text style={styles.resultModalText}>{resultModalMessage}</Text>
+            <Pressable
+              style={styles.resultModalButton}
+              onPress={() => setResultModalVisible(false)}
+            >
+              <Text style={styles.resultModalButtonText}>Cerrar</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
         visible={modalVisible}
         transparent
         animationType="slide"
@@ -185,9 +294,9 @@ const handleStatusUpdate = async (status: string) => {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { maxWidth: width * 0.9 }]}> 
-            <Text style={styles.modalTitle}>
+            {/* <Text style={styles.modalTitle}>
               No Documento: {modalData.noDocumento}
-            </Text>
+            </Text> */}
             <Text style={styles.modalInfo}>
               <Text style={styles.bold}>Nombre:</Text> {modalData.nombre}
             </Text>
@@ -199,6 +308,12 @@ const handleStatusUpdate = async (status: string) => {
             </Text>
             <Text style={styles.modalInfo}>
               <Text style={styles.bold}>Lugar:</Text> {modalData.lugar}
+            </Text>
+            <Text style={styles.modalInfo}>
+              <Text style={styles.bold}>Zona:</Text> {modalData.zona}
+            </Text>
+            <Text style={styles.modalInfo}>
+              <Text style={styles.bold}>Entrada:</Text> {modalData.fila} de {modalData.cantidad}
             </Text>
             <View style={styles.buttonRow}>
               <Pressable
@@ -332,6 +447,42 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 16,
   },
+  resultModalContent: {
+  backgroundColor: 'white',
+  borderRadius: 12,
+  padding: 32,
+  alignItems: 'center',
+  width: 280,
+},
+resultModalAprobado: {
+  borderColor: '#4CAF50',
+  borderWidth: 3,
+},
+resultModalRechazado: {
+  borderColor: '#F44336',
+  borderWidth: 3,
+},
+resultModalIcon: {
+  fontSize: 48,
+  marginBottom: 16,
+},
+resultModalText: {
+  fontSize: 18,
+  fontWeight: 'bold',
+  marginBottom: 24,
+  textAlign: 'center',
+},
+resultModalButton: {
+  backgroundColor: '#22242e',
+  paddingVertical: 10,
+  paddingHorizontal: 24,
+  borderRadius: 6,
+},
+resultModalButtonText: {
+  color: 'white',
+  fontWeight: 'bold',
+  fontSize: 16,
+},
 });
 
 export default Home;
