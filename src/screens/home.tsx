@@ -87,7 +87,24 @@ const Home: React.FC = () => {
           const payments = await response.json();
           const payment = payments.find((p: any) => p.idDetalle === idDetalle);
           // console.log("Datos del pago encontrado:", payment);
-          console.log("Datos del detalle encontrado:", details);
+          // console.log("Datos del detalle encontrado:", details);
+
+           if (details.status === "Aprobado") {
+            setResultModalType('aprobado');
+            setResultModalMessage('Esta entrada ya fue aprobada.');
+            setResultModalVisible(true);
+            setScanned(false);
+            return;
+          }
+
+          if (details.status === "Rechazado") {
+            setResultModalType('rechazado');
+            setResultModalMessage('Esta entrada ya fue rechazada.');
+            setResultModalVisible(true);
+            setScanned(false);
+            return;
+          }
+
           if (payment && details) {
             noDocumento = payment.noDocumento;
             fila = payment.fila.toString() || '';
