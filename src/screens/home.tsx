@@ -116,6 +116,8 @@ const Home: React.FC = () => {
               cantidad,
               zona
             }));
+
+            // console.log("cantidad de entradas:", cantidad);
           }
         } catch (error) {
           console.error("Error al obtener detalles:", error);
@@ -151,7 +153,6 @@ const Home: React.FC = () => {
       }
     } else {
       // Si es un objeto único, la cantidad es 1
-      cantidadEntradas = 1;
       if (idEvento) {
         const eventResponse = await fetch(
           `${api}/eventos/eventos.php?idEvento=${idEvento}`
@@ -163,7 +164,6 @@ const Home: React.FC = () => {
         lugar = event.lugar || "";
       }
     }
-    cantidad = cantidadEntradas.toString();
   } catch (error) {
     console.error("Error al obtener datos del pago/evento:", error);
   }
@@ -370,7 +370,8 @@ const handleStatusUpdate = async (status: string) => {
           {scanned && (
             <Pressable style={styles.button} onPress={() => setScanned(false)}>
               <Text style={styles.buttonText}>
-                Toca aquí para escanear nuevamente
+                {/* Toca aquí para escanear nuevamente */}
+                Escanear de nuevo
               </Text>
             </Pressable>
           )}
