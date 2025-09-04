@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, Alert, Pressable, Modal, Dimensions, ScrollView } from "react-native";
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Alert,
+  Pressable,
+  Modal,
+  Dimensions,
+  ScrollView,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Camera, CameraView } from "expo-camera";
 
 const Home: React.FC = () => {
@@ -17,11 +26,13 @@ const Home: React.FC = () => {
     lugar: "",
     fila: "",
     cantidad: "",
-    zona: ""
+    zona: "",
   });
   const [resultModalVisible, setResultModalVisible] = useState(false);
-  const [resultModalType, setResultModalType] = useState<'aprobado' | 'rechazado' | null>(null);
-  const [resultModalMessage, setResultModalMessage] = useState('');
+  const [resultModalType, setResultModalType] = useState<
+    "aprobado" | "rechazado" | null
+  >(null);
+  const [resultModalMessage, setResultModalMessage] = useState("");
   const [invalidQRModalVisible, setInvalidQRModalVisible] = useState(false);
 
   const api: string = "https://catedragaitera.com/catedraGaiteraBack/apiv1";
@@ -65,56 +76,71 @@ const Home: React.FC = () => {
       let lugar = "";
       let fila = "";
       let cantidad = "";
-      let zona = ""
+      let zona = "";
       // Si termina en invoices/<numero>
       const invoicesMatch = result.data.match(/invoices\/(\d+)$/);
       // Si termina en invoice/<numero>
       const invoiceMatch = result.data.match(/invoice\/(\d+)$/);
       if (invoicesMatch) {
         idDetalle = invoicesMatch[1];
-        console.log("ID Detalle encontrado:", idDetalle);
+        // console.log("ID Detalle encontrado:", idDetalle);
       } else if (invoiceMatch) {
         noDocumento = invoiceMatch[1];
-        console.log("No Documento encontrado:", noDocumento);
+        // console.log("No Documento encontrado:", noDocumento);
       }
 
       // Si tenemos idDetalle, buscar el noDocumento asociado
       if (idDetalle) {
         try {
           const response = await fetch(`${api}/facturacion/detalles.php`);
-          const responseDetails = await fetch(`${api}/facturacion/detalles.php?idDetalle=${idDetalle}`);
-          const details = await responseDetails.json()
+          const responseDetails = await fetch(
+            `${api}/facturacion/detalles.php?idDetalle=${idDetalle}`
+          );
+          const details = await responseDetails.json();
           const payments = await response.json();
           const payment = payments.find((p: any) => p.idDetalle === idDetalle);
           // console.log("Datos del pago encontrado:", payment);
           // console.log("Datos del detalle encontrado:", details);
 
-           if (details.status === "Aprobado") {
-            setResultModalType('aprobado');
-            setResultModalMessage('Esta entrada ya fue aprobada.');
+          if (details.status === "Aprobado" || details.status === "Rechazado") {
+            cantidad = details.cantidadDeEntradas?.toString() || "";
+            fila = details.fila?.toString() || "";
+            zona = details.nombreZona ?? "";
+            setModalData({
+              idDetalle: idDetalle ?? "No encontrado",
+              noDocumento: noDocumento ?? "No encontrado",
+              nombre,
+              fecha: formatDate(fecha),
+              hora: formatTime(hora),
+              lugar,
+              fila,
+              cantidad,
+              zona,
+            });
+            setResultModalType(
+              details.status === "Aprobado" ? "aprobado" : "rechazado"
+            );
+            setResultModalMessage(
+              details.status === "Aprobado"
+                ? "Esta entrada ya fue aprobada."
+                : "Esta entrada ya fue rechazada."
+            );
             setResultModalVisible(true);
             setScanned(false);
-            return;
-          }
-
-          if (details.status === "Rechazado") {
-            setResultModalType('rechazado');
-            setResultModalMessage('Esta entrada ya fue rechazada.');
-            setResultModalVisible(true);
-            setScanned(false);
+            console.log("entrada:", cantidad, fila, details);
             return;
           }
 
           if (payment && details) {
             noDocumento = payment.noDocumento;
-            fila = payment.fila.toString() || '';
-            cantidad = details.cantidadDeEntradas.toString() || '';
-            zona = details.nombreZona
-            setModalData(prev => ({
+            fila = payment.fila.toString() || "";
+            cantidad = details.cantidadDeEntradas.toString() || "";
+            zona = details.nombreZona;
+            setModalData((prev) => ({
               ...prev,
               fila,
               cantidad,
-              zona
+              zona,
             }));
 
             // console.log("cantidad de entradas:", cantidad);
@@ -127,58 +153,63 @@ const Home: React.FC = () => {
       // Si tenemos noDocumento, buscar los datos del pago y evento
       if (noDocumento) {
         try {
-    const response = await fetch(
-      `${api}/facturacion/facturacion.php?noDocumento=${noDocumento}`
-    );
-    const payment = await response.json();
-    const idEvento = payment.idEvento;
-    let cantidadEntradas = 0;
-
-    // Si la respuesta es un array, la cantidad es su longitud
-    if (Array.isArray(payment)) {
-      cantidadEntradas = payment.length;
-      // Puedes tomar los datos del primer objeto si necesitas nombre, fecha, etc.
-      if (payment[0]) {
-        const { idEvento: eventoId } = payment[0];
-        if (eventoId) {
-          const eventResponse = await fetch(
-            `${api}/eventos/eventos.php?idEvento=${eventoId}`
+          const response = await fetch(
+            `${api}/facturacion/facturacion.php?noDocumento=${noDocumento}`
           );
-          const event = await eventResponse.json();
-          nombre = event.nombre || "";
-          fecha = event.fecha || "";
-          hora = event.hora || "";
-          lugar = event.lugar || "";
+          const payment = await response.json();
+          const idEvento = payment.idEvento;
+          let cantidadEntradas = 0;
+
+          // Si la respuesta es un array, la cantidad es su longitud
+          if (Array.isArray(payment)) {
+            cantidadEntradas = payment.length;
+            // Puedes tomar los datos del primer objeto si necesitas nombre, fecha, etc.
+            if (payment[0]) {
+              const { idEvento: eventoId } = payment[0];
+              if (eventoId) {
+                const eventResponse = await fetch(
+                  `${api}/eventos/eventos.php?idEvento=${eventoId}`
+                );
+                const event = await eventResponse.json();
+                nombre = event.nombre || "";
+                fecha = event.fecha || "";
+                hora = event.hora || "";
+                lugar = event.lugar || "";
+              }
+            }
+          } else {
+            // Si es un objeto único, la cantidad es 1
+            if (idEvento) {
+              const eventResponse = await fetch(
+                `${api}/eventos/eventos.php?idEvento=${idEvento}`
+              );
+              const event = await eventResponse.json();
+              nombre = event.nombre || "";
+              fecha = event.fecha || "";
+              hora = event.hora || "";
+              lugar = event.lugar || "";
+            }
+          }
+        } catch (error) {
+          console.error("Error al obtener datos del pago/evento:", error);
         }
-      }
-    } else {
-      // Si es un objeto único, la cantidad es 1
-      if (idEvento) {
-        const eventResponse = await fetch(
-          `${api}/eventos/eventos.php?idEvento=${idEvento}`
-        );
-        const event = await eventResponse.json();
-        nombre = event.nombre || "";
-        fecha = event.fecha || "";
-        hora = event.hora || "";
-        lugar = event.lugar || "";
-      }
-    }
-  } catch (error) {
-    console.error("Error al obtener datos del pago/evento:", error);
-  }
       }
 
       if (
-      (!idDetalle || idDetalle === "No encontrado") &&
-      (!noDocumento || noDocumento === "No encontrado") &&
-      !nombre && !fecha && !hora && !lugar && !fila && !cantidad
+        (!idDetalle || idDetalle === "No encontrado") &&
+        (!noDocumento || noDocumento === "No encontrado") &&
+        !nombre &&
+        !fecha &&
+        !hora &&
+        !lugar &&
+        !fila &&
+        !cantidad
       ) {
         setInvalidQRModalVisible(true);
         setScanned(false); // Permite volver a escanear
         return;
       }
-      
+
       // Formatear hora (opcional, aquí solo se muestra como viene)
       // Mostrar modal con los datos
       setModalData({
@@ -190,7 +221,7 @@ const Home: React.FC = () => {
         lugar,
         fila,
         cantidad,
-        zona
+        zona,
       });
       setModalVisible(true);
       // Aquí puedes actualizar el estado si quieres mostrar los datos en pantalla
@@ -206,58 +237,61 @@ const Home: React.FC = () => {
   }
 
   // Función para actualizar el status en la API
-const handleStatusUpdate = async (status: string) => {
-  let url = `${api}/facturacion/detalles.php`;
-  let body: any = { accion: 'actualizarStatus', status };
+  const handleStatusUpdate = async (status: string) => {
+    let url = `${api}/facturacion/detalles.php`;
+    let body: any = { accion: "actualizarStatus", status };
 
-  if (modalData.idDetalle && modalData.idDetalle !== 'No encontrado') {
-    body.idDetalle = Number(modalData.idDetalle);
-  } else if (modalData.noDocumento && modalData.noDocumento !== 'No encontrado') {
-    body.noDocumento = Number(modalData.noDocumento);
-  } else {
-    alert('No se encontró idDetalle ni noDocumento para actualizar.');
-    return;
-  }
-
-  const options = {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  };
-
-  try {
-    const response = await fetch(url, options);
-    const text = await response.text();
-    let data = {};
-    try {
-      data = text ? JSON.parse(text) : {};
-    } catch (e) {
-      console.error('Error al parsear JSON:', e, text);
-      Alert.alert('Error', 'La respuesta del servidor no es un JSON válido.');
+    if (modalData.idDetalle && modalData.idDetalle !== "No encontrado") {
+      body.idDetalle = Number(modalData.idDetalle);
+    } else if (
+      modalData.noDocumento &&
+      modalData.noDocumento !== "No encontrado"
+    ) {
+      body.noDocumento = Number(modalData.noDocumento);
+    } else {
+      alert("No se encontró idDetalle ni noDocumento para actualizar.");
       return;
     }
-    console.log('Respuesta de la API:', data);
-    if (response.ok) {
-    if (status === 'Rechazado') {
-      setResultModalType('rechazado');
-      setResultModalMessage('La entrada ha sido rechazada correctamente.');
-    } else {
-      setResultModalType('aprobado');
-      setResultModalMessage('La entrada ha sido aprobada correctamente.');
-    }
-    setResultModalVisible(true);
-  } else {
-    Alert.alert('Error al aprobar entrada');
-  }
-  } catch (error) {
-    console.error('Error al actualizar el status:', error);
-    alert('Error al actualizar el status.');
-  }
-};
 
-  const { width, height } = Dimensions.get('window');
+    const options = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    };
+
+    try {
+      const response = await fetch(url, options);
+      const text = await response.text();
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (e) {
+        console.error("Error al parsear JSON:", e, text);
+        Alert.alert("Error", "La respuesta del servidor no es un JSON válido.");
+        return;
+      }
+      console.log("Respuesta de la API:", data);
+      if (response.ok) {
+        if (status === "Rechazado") {
+          setResultModalType("rechazado");
+          setResultModalMessage("La entrada ha sido rechazada correctamente.");
+        } else {
+          setResultModalType("aprobado");
+          setResultModalMessage("La entrada ha sido aprobada correctamente.");
+        }
+        setResultModalVisible(true);
+      } else {
+        Alert.alert("Error al aprobar entrada");
+      }
+    } catch (error) {
+      console.error("Error al actualizar el status:", error);
+      alert("Error al actualizar el status.");
+    }
+  };
+
+  const { width, height } = Dimensions.get("window");
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#22242e' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#22242e" }}>
       <Modal
         visible={invalidQRModalVisible}
         transparent
@@ -265,7 +299,9 @@ const handleStatusUpdate = async (status: string) => {
         onRequestClose={() => setInvalidQRModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.resultModalContent, styles.resultModalRechazado]}>
+          <View
+            style={[styles.resultModalContent, styles.resultModalRechazado]}
+          >
             <Text style={styles.resultModalIcon}>❌</Text>
             <Text style={styles.resultModalText}>QR inválido</Text>
             <Pressable
@@ -278,21 +314,31 @@ const handleStatusUpdate = async (status: string) => {
         </View>
       </Modal>
 
-        <Modal
+      <Modal
         visible={resultModalVisible}
         transparent
         animationType="fade"
         onRequestClose={() => setResultModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[
-            styles.resultModalContent,
-            resultModalType === 'aprobado' ? styles.resultModalAprobado : styles.resultModalRechazado
-          ]}>
+          <View
+            style={[
+              styles.resultModalContent,
+              resultModalType === "aprobado"
+                ? styles.resultModalAprobado
+                : styles.resultModalRechazado,
+            ]}
+          >
             <Text style={styles.resultModalIcon}>
-              {resultModalType === 'aprobado' ? '✅' : '❌'}
+              {resultModalType === "aprobado" ? "✅" : "❌"}
             </Text>
             <Text style={styles.resultModalText}>{resultModalMessage}</Text>
+
+            <Text style={styles.modalInfo}>
+              <Text style={styles.resultModalText}>Entrada:</Text> {modalData.fila} de{" "}
+              {modalData.cantidad}
+            </Text>
+
             <Pressable
               style={styles.resultModalButton}
               onPress={() => setResultModalVisible(false)}
@@ -310,7 +356,7 @@ const handleStatusUpdate = async (status: string) => {
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { maxWidth: width * 0.9 }]}> 
+          <View style={[styles.modalContent, { maxWidth: width * 0.9 }]}>
             {/* <Text style={styles.modalTitle}>
               No Documento: {modalData.noDocumento}
             </Text> */}
@@ -330,14 +376,15 @@ const handleStatusUpdate = async (status: string) => {
               <Text style={styles.bold}>Zona:</Text> {modalData.zona}
             </Text>
             <Text style={styles.modalInfo}>
-              <Text style={styles.bold}>Entrada:</Text> {modalData.fila} de {modalData.cantidad}
+              <Text style={styles.bold}>Entrada:</Text> {modalData.fila} de{" "}
+              {modalData.cantidad}
             </Text>
             <View style={styles.buttonRow}>
               <Pressable
                 style={[styles.actionButton, styles.approveButton]}
                 onPress={async () => {
                   setModalVisible(false); /* lógica de aprobar */
-                  await handleStatusUpdate('Aprobado');
+                  await handleStatusUpdate("Aprobado");
                 }}
               >
                 <Text style={styles.buttonActionText}>Aprobar</Text>
@@ -346,7 +393,7 @@ const handleStatusUpdate = async (status: string) => {
                 style={[styles.actionButton, styles.rejectButton]}
                 onPress={async () => {
                   setModalVisible(false); /* lógica de rechazar */
-                  await handleStatusUpdate('Rechazado');
+                  await handleStatusUpdate("Rechazado");
                 }}
               >
                 <Text style={styles.buttonActionText}>Rechazar</Text>
@@ -359,7 +406,11 @@ const handleStatusUpdate = async (status: string) => {
         <View style={styles.container}>
           <Text style={styles.title}>Escanea un Código QR</Text>
           <CameraView
-            style={{ width: width * 0.9, height: height * 0.5, borderRadius: 16 }}
+            style={{
+              width: width * 0.9,
+              height: height * 0.5,
+              borderRadius: 16,
+            }}
             facing="back"
             onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
             ref={cameraRef}
@@ -466,41 +517,41 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   resultModalContent: {
-  backgroundColor: 'white',
-  borderRadius: 12,
-  padding: 32,
-  alignItems: 'center',
-  width: 280,
-},
-resultModalAprobado: {
-  borderColor: '#4CAF50',
-  borderWidth: 3,
-},
-resultModalRechazado: {
-  borderColor: '#F44336',
-  borderWidth: 3,
-},
-resultModalIcon: {
-  fontSize: 48,
-  marginBottom: 16,
-},
-resultModalText: {
-  fontSize: 18,
-  fontWeight: 'bold',
-  marginBottom: 24,
-  textAlign: 'center',
-},
-resultModalButton: {
-  backgroundColor: '#22242e',
-  paddingVertical: 10,
-  paddingHorizontal: 24,
-  borderRadius: 6,
-},
-resultModalButtonText: {
-  color: 'white',
-  fontWeight: 'bold',
-  fontSize: 16,
-},
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 32,
+    alignItems: "center",
+    width: 280,
+  },
+  resultModalAprobado: {
+    borderColor: "#4CAF50",
+    borderWidth: 3,
+  },
+  resultModalRechazado: {
+    borderColor: "#F44336",
+    borderWidth: 3,
+  },
+  resultModalIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  resultModalText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 24,
+    textAlign: "center",
+  },
+  resultModalButton: {
+    backgroundColor: "#22242e",
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 6,
+  },
+  resultModalButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
 });
 
 export default Home;
