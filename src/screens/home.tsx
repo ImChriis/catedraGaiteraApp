@@ -26,7 +26,10 @@ const Home: React.FC = () => {
     lugar: "",
     fila: "",
     cantidad: "",
-    zona: "",
+    zona: "",  
+    fechaRevisado: "",
+    horaRevisado: "",
+    revisado: ""
   });
   const [resultModalVisible, setResultModalVisible] = useState(false);
   const [resultModalType, setResultModalType] = useState<
@@ -77,6 +80,16 @@ const Home: React.FC = () => {
       let fila = "";
       let cantidad = "";
       let zona = "";
+      let revisado = "";
+
+      const now = new Date();
+      const fechaRevisado = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+      let hours = now.getHours();
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12 || 12;
+      const horaRevisado = `${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
+
       // Si termina en invoices/<numero>
       const invoicesMatch = result.data.match(/invoices\/(\d+)$/);
       // Si termina en invoice/<numero>
@@ -106,6 +119,17 @@ const Home: React.FC = () => {
             cantidad = details.cantidadDeEntradas?.toString() || "";
             fila = details.fila?.toString() || "";
             zona = details.nombreZona ?? "";
+            revisado = details.revisado.toString() || ""
+
+            let fechaRevisado = "";
+            let horaRevisado = "";
+            if (revisado) {
+              const partes = revisado.split(" ");
+              fechaRevisado = partes[0] || "";
+              horaRevisado = (partes[1] && partes[2]) ? `${partes[1]} ${partes[2]}` : "";
+            }
+
+
             setModalData({
               idDetalle: idDetalle ?? "No encontrado",
               noDocumento: noDocumento ?? "No encontrado",
@@ -116,6 +140,9 @@ const Home: React.FC = () => {
               fila,
               cantidad,
               zona,
+              fechaRevisado,
+              horaRevisado,
+              revisado
             });
             setResultModalType(
               details.status === "Aprobado" ? "aprobado" : "rechazado"
@@ -222,6 +249,9 @@ const Home: React.FC = () => {
         fila,
         cantidad,
         zona,
+        fechaRevisado,
+        horaRevisado,
+        revisado
       });
       setModalVisible(true);
       // Aquí puedes actualizar el estado si quieres mostrar los datos en pantalla
@@ -238,8 +268,10 @@ const Home: React.FC = () => {
 
   // Función para actualizar el status en la API
   const handleStatusUpdate = async (status: string) => {
+  const revisado = `${modalData.fechaRevisado} ${modalData.horaRevisado}`; // Ejemplo: "05-09-2025 03:15 PM"
+
     let url = `${api}/facturacion/detalles.php`;
-    let body: any = { accion: "actualizarStatus", status };
+    let body: any = { accion: "actualizarStatus", status, revisado: revisado };
 
     if (modalData.idDetalle && modalData.idDetalle !== "No encontrado") {
       body.idDetalle = Number(modalData.idDetalle);
@@ -335,10 +367,17 @@ const Home: React.FC = () => {
             <Text style={styles.resultModalText}>{resultModalMessage}</Text>
 
             <Text style={styles.modalInfo}>
-              <Text style={styles.resultModalText}>Entrada:</Text> {modalData.fila} de{" "}
+              <Text style={styles.bold}>Entrada:</Text> {modalData.fila} de{" "}
               {modalData.cantidad}
             </Text>
 
+            <Text style={styles.modalInfo}>
+              <Text style={styles.bold}>Fecha revisión:</Text> {modalData.fechaRevisado}
+            </Text>
+
+            <Text style={styles.modalInfo}>
+              <Text style={styles.bold}>Hora revisión:</Text> {modalData.horaRevisado}
+            </Text>
             <Pressable
               style={styles.resultModalButton}
               onPress={() => setResultModalVisible(false)}
@@ -378,6 +417,12 @@ const Home: React.FC = () => {
             <Text style={styles.modalInfo}>
               <Text style={styles.bold}>Entrada:</Text> {modalData.fila} de{" "}
               {modalData.cantidad}
+            </Text>
+            <Text style={styles.modalInfo}>
+              <Text style={styles.bold}>Fecha revisión:</Text> {modalData.fechaRevisado}
+            </Text>
+            <Text style={styles.modalInfo}>
+              <Text style={styles.bold}>Hora revisión:</Text> {modalData.horaRevisado}
             </Text>
             <View style={styles.buttonRow}>
               <Pressable
